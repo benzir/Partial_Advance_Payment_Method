@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+  <modules>
+    <Heavenit_Partialpayment>
+      <active>true</active>
+      <codePool>local</codePool>
+    </Heavenit_Partialpayment>
+  </modules>
+</config>

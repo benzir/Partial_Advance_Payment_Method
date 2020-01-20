@@ -1,0 +1,35 @@
+<?php $_methodCode = $this->getMethodCode(); ?>
+
+<ul class="form-list <?php echo $_methodCode ?>-list" id="payment_form_<?php echo $_methodCode ?>" style="display:none;">
+  <?php
+		// Allow Partial Paymnet Method
+		$_ppPercentage = Mage::helper('partialpayment')->getPpPercentage();
+    	$_ppAllowMethods = Mage::helper('partialpayment')->getAllowPMethods();
+		#print_r($_ppAllowMethods);
+		
+		#$_cartItems = Mage::helper('checkout/cart')->getCart()->getQuote()->getAllVisibleItems();
+		
+		$quote = Mage::getSingleton('checkout/session')->getQuote();
+		$_grandTotal = $quote->getGrandTotal();
+		
+		$_downPaymentAmount = round(($_grandTotal*$_ppPercentage)/100);
+	?>
+  <li>
+  	<?php if($_downPaymentAmount){?>
+    <em style="color: #F39801; font-size: 12px; font-weight: normal;"><?php echo $_ppPercentage;?>% of total payment needed for partial payment. i.e. *Payable Amount: <?php echo Mage::helper('core')->currency($_downPaymentAmount,true,true); ?></em><br /><br />
+    <?php } ?>
+    <div class="fieldBox">
+      <label for="<?php echo $_methodCode ?>_ppmethod" class="required"><em>*</em><?php echo $this->__('Partial Payment Method') ?></label>
+      <div class="input-box">
+        <select class="inputBox required-entry"  id="<?php echo $_methodCode ?>_ppmethod" name="payment[pp_method]" title="<?php echo $this->__('Partial Payment Method') ?>" onchange="getResult.save();" >
+          <option value=""><?php echo $this->__('-- Select Method --') ?></option>
+          <?php $_selectedppMethodCode = $this->getInfoData('pp_method'); ?>
+          <?php foreach ($_ppAllowMethods as $_ppMethodKey => $_ppMethodCode): ?>
+          <?php $_pmTitle = Mage::getStoreConfig('payment/'.$_ppMethodCode.'/title'); ?>
+          <option value="<?php echo $_ppMethodCode; ?>" <?php if($_ppMethodCode==$_selectedppMethodCode): ?>selected="selected"<?php endif ?>> <?php echo $_pmTitle; ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </div>
+  </li>
+</ul>

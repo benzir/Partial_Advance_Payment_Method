@@ -1,0 +1,106 @@
+<?php
+/**
+*	Author		: 	Heaven IT Solutions
+*	Author Email:   info@heavenit.com
+*	Website		: 	http://www.heavenit.com/
+*/
+
+// Check Test and Live Mode
+$_testMode = Mage::helper('partialpayment')->getTestMode();
+
+// Retrieve order
+$_order = new Mage_Sales_Model_Order();
+$_orgOrderId = Mage::app()->getRequest()->getParam('order_id');
+$_order->load($_orgOrderId);
+#print_r($_order->getData()); exit;
+
+$orderId = $_order->getIncrementId();
+$baseGrandTotal = $_order->getBaseGrandTotal();
+$discountAmount = abs($_order->getBaseDiscountAmount());
+$baseFairTotal = ($baseGrandTotal+$discountAmount);
+
+// Get Partial Amount Percentage and Calculate Prtail Amount
+$_ppPercentage = Mage::helper('partialpayment')->getPpPercentage();
+
+$_duePaymentAmount = round($_order->getTotalDue());
+#echo $_duePaymentAmount; exit;
+
+/* Current Payment Method Informaiton */
+$_orderPayment = $_order->getPayment();
+$_orderPaymentData = $_orderPayment->getData();
+
+if($_orderPayment->getPpMethod() == "sslcommerz"){
+
+	if($_testMode):
+		$_SSLPaymentGatewayURL = "https://sandbox.sslcommerz.com/gwprocess/v4/api.php";
+		$_SSLStoreId = "";
+		$_SSLStorePasword = '';
+	else:
+		$_SSLPaymentGatewayURL = "https://securepay.sslcommerz.com/gwprocess/v4/api.php";
+		$_SSLStoreId = "";
+		$_SSLStorePasword = '';
+	endif;
+	
+	# SSLCOMMERZ GATEWAY REDIRECT
+	$post_data = array();
+	$post_data['store_id'] = $_SSLStoreId;
+	$post_data['store_passwd'] = $_SSLStorePasword;
+	$post_data['total_amount'] =  ($_duePaymentAmount)?$_duePaymentAmount:$baseGrandTotal;
+	$post_data['currency'] = $_order->getOrderCurrencyCode();
+	$post_data['tran_id'] = $orderId;
+	
+	if($_testMode):
+		$post_data['success_url'] = Mage::getUrl('partialpayment/payment/payresponse/order_id/'.$_orgOrderId, array('_secure'=>true));
+		$post_data['fail_url'] =  Mage::getUrl('partialpayment/payment/payresponse/order_id/'.$_orgOrderId, array('_secure'=>true));
+		$post_data['cancel_url'] =  Mage::getUrl('partialpayment/payment/payresponse/order_id/'.$_orgOrderId, array('_secure'=>true));
+	else:
+		$post_data['success_url'] = "https://www.example.com/partialpayment/payment/payresponse/order_id/".$_orgOrderId;
+		$post_data['fail_url'] =  "https://www.example.com/partialpayment/payment/payresponse/order_id/".$_orgOrderId;
+		$post_data['cancel_url'] =  "https://www.example.com/partialpayment/payment/payresponse/order_id/".$_orgOrderId;
+	endif;	
+	
+	// CUSTOMER INFORMATION
+	if(empty($discountAmount)){
+		$post_data['cus_name'] = $_order->getBillingAddress()->getName();
+		$post_data['cus_email'] = $_order->getCustomerEmail(); // "N/A";
+		$post_data['cus_add1'] = "N/A";
+		$post_data['cus_city'] = "N/A";
+		$post_data['cus_postcode'] = "N/A";
+		$post_data['cus_country'] = "N/A";
+		$post_data['cus_phone'] = $_order->getBillingAddress()->getTelephone();
+		
+		$post_data['shipping_method'] = "NO";
+		$post_data['num_of_item'] = "NO";
+		$post_data['product_name'] = "N/A";
+		$post_data['product_category'] = "N/A";
+		$post_data['product_profile'] = "N/A";
+		#print_r($_orderPayment->getData()); exit;
+	}
+	#print_r($post_data); exit;
+	
+	$_orderCouponCode = (string)$_order->getCouponCode();
+	
+	$sslcommerzResponse = Mage::helper('partialpayment')->sslcommerzClient($_SSLPaymentGatewayURL , $post_data);
+	$sslcz = json_decode($sslcommerzResponse, true);
+	
+	// Debug Mode
+	$_debugMode = Mage::helper('partialpayment')->getDebugMode();
+	if($_debugMode):
+		unset($post_data['store_passwd']); // For security reason removed SSL store password in the log file
+		Mage::log(array($post_data, $sslcz), null, 'sslcommerz_payment.log');
+	endif;
+	
+	if(isset($sslcz['GatewayPageURL']) && $sslcz['GatewayPageURL']!="" ) {
+		echo '<h2 style="padding:30px 10px;">'.Mage::helper('partialpayment')->__('You will be redirected to the payment gateway in a few seconds.').'</h2>';
+		echo "<meta http-equiv='refresh' content='0;url=".$sslcz['GatewayPageURL']."'>";
+		exit;
+} else {
+?>
+	<h2 style="padding:30px 10px 10px;"><?php echo $this->__('An error occurred in the process of payment. Please try again later.') ?></h2>
+    <p style="padding:0px 10px;"><?php echo $this->__('Click <a href="%s">here</a> to continue shopping.', $this->getContinueShoppingUrl()) ?></p>
+<?php 
+	}
+?>
+<?php }else{?>
+	<?php echo $this->__('An error occurred in the process of payment. Please try again later or contact us.') ?>
+<?php } ?>
