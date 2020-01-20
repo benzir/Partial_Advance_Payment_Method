@@ -1,4 +1,4 @@
-# Partial Advanced Payment Method Extension for Magento 1
+# Partial Advance Payment Method Extension for Magento 1
 
 Partial Payment Method using Available Payment for Magento 1.6.x-1.9.x Platform.
 
